@@ -1,5 +1,6 @@
 #include <ros/ros.h>
 #include <omnicopter_ros/MotorCommand.h>
+#include <omnicopter_ros/pwm_i2c_driver.h>
 
 void commandCallback(const omnicopter_ros::MotorCommand& input) {
 	//Write command to PWM driver board
