@@ -24,6 +24,7 @@ generate_messages(
 )
 
 catkin_package(
+	LIBRARIES rtimulib_ros
 	CATKIN_DEPENDS message_runtime std_msgs
 )
 
@@ -37,6 +38,7 @@ add_executable(rc_i2c_driver src/rc_i2c_driver.cpp)
 add_executable(attitude_controller src/attitude_controller.cpp)
 add_executable(position_controller src/position_controller.cpp)
 add_executable(control_allocation src/control_allocation.cpp)
+add_executable(rtimulib_ros src/rtimulib_ros.cpp)
 
 add_dependencies(motor_i2c_driver ${${PROJECT_NAME}_EXPORTED_TARGETS})
 add_dependencies(rc_i2c_driver ${${PROJECT_NAME}_EXPORTED_TARGETS})
@@ -48,14 +50,6 @@ target_link_libraries(rc_i2c_driver ${catkin_LIBRARIES})
 target_link_libraries(attitude_controller ${catkin_LIBRARIES})
 target_link_libraries(position_controller ${catkin_LIBRARIES})
 target_link_libraries(control_allocation ${catkin_LIBRARIES})
+target_link_libraries(rtimulib_ros ${catkin_LIBRARIES} RTIMULib)
 
 
-#install(TARGETS main_pos
-#  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-#)
-
-#install(DIRECTORY launch
-#  DESTINATION  ${CATKIN_PACKAGE_SHARE_DESTINATION}
-#)
