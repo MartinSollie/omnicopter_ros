@@ -1,1 +1,0 @@
-# omnicopter_ros

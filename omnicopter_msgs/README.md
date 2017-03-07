@@ -1,2 +1,0 @@
-
-# omnicopter_msgs

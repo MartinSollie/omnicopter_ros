@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<launch>
+	<node pkg="omnicopter_ros" type="commander" name="commander" output="screen" />
+	<node pkg="omnicopter_ros" type="motor_i2c_driver" name="motor_i2c_driver" />
+	<node pkg="omnicopter_ros" type="rc_i2c_driver" name="rc_i2c_driver" />
+	<node pkg="omnicopter_ros" type="control_allocation" name="control_allocation" />
+	<node pkg="omnicopter_ros" type="attitude_controller" name="attitude_controller" />
+</launch>
