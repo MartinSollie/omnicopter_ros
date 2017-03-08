@@ -9,6 +9,7 @@ Mens vi utvikler kan vi bruke fullversjonen med GUI, men etter hvert bør vi gå
 Wifi: https://oshlab.com/esp8266-raspberry-pi-gpio-wifi/
 
 Installere ROS: http://wiki.ros.org/ROSberryPi/Installing%20ROS%20Kinetic%20on%20the%20Raspberry%20Pi
+http://wiki.ros.org/indigo/Installation/UbuntuARM#Set_your_Locale
 
 Installere RTIMULib: https://github.com/RPi-Distro/RTIMULib/tree/master/Linux
 
