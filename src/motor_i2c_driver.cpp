@@ -17,7 +17,7 @@ int main(int argc, char **argv){
 	// Initialize I2C
 
 	//READ TESTING:
-	i2c = new I2C(1,0x70);
+	I2C *i2c = new I2C(1,70);
 
   while(1){
     int buf = 0;

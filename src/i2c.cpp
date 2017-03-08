@@ -21,89 +21,65 @@
  * Copyright © 2012 Georgi Todorov  <terahz@geodar.com>
  */
 
-#include <sys/ioctl.h>
 #include <errno.h>
 #include <stdio.h>      /* Standard I/O functions */
-#include <fcntl.h>
-#include <unistd.h>
 #include <linux/i2c.h>
-#include <linux/i2c-dev.h>
 #include <syslog.h>		/* Syslog functionality */
 #include "i2c.h"
 
-I2C::I2C(int bus, int address) {
-	_i2cbus = bus;
-	_i2caddr = address;
-	snprintf(busfile, sizeof(busfile), "/dev/i2c-%d", bus);
-	openfd();
-}
+#include <unistd.h>				//Needed for I2C port
+#include <fcntl.h>				//Needed for I2C port
+#include <sys/ioctl.h>			//Needed for I2C port
+#include <linux/i2c-dev.h>		//Needed for I2C port
 
-I2C::~I2C() {
-	close(fd);
+
+unsigned char buffer[60] = {0};
+
+int main(void){
+	printf("Initialize i2c\n", );
+	i2c_init(70);
+	while (1) {
+		i2c_read_byte(1,buffer);
+		printf("read: %d\n", buffer);
+	}
 }
-//! Read a single byte from I2C Bus
-/*!
- \param address register address to read from
- */
-uint8_t I2C::read_byte(uint8_t address) {
-	if (fd != -1) {
-		uint8_t buff[BUFFER_SIZE];
-		buff[0] = address;
-		if (write(fd, buff, BUFFER_SIZE) != BUFFER_SIZE) {
-			syslog(LOG_ERR,
-					"I2C slave 0x%x failed to go to register 0x%x [read_byte():write %d]",
-					_i2caddr, address, errno);
-			return (-1);
-		} else {
-			if (read(fd, dataBuffer, BUFFER_SIZE) != BUFFER_SIZE) {
-				syslog(LOG_ERR,
-						"Could not read from I2C slave 0x%x, register 0x%x [read_byte():read %d]",
-						_i2caddr, address, errno);
-				return (-1);
-			} else {
-				return dataBuffer[0];
-			}
-		}
-	} else {
-		syslog(LOG_ERR, "Device File not available. Aborting read");
-		return (-1);
+void i2c_init(int address){
+	int file_i2c;
+	char *filename = (char*)"/dev/i2c-1";
+	if ((file_i2c = open(filename, O_RDWR)) < 0)
+	{
+		//ERROR HANDLING: you can check errno to see what went wrong
+		printf("Failed to open the i2c bus");
+		return;
 	}
 
-}
-//! Write a single byte from a I2C Device
-/*!
- \param address register address to write to
- \param data 8 bit data to write
- */
-uint8_t I2C::write_byte(uint8_t address, uint8_t data) {
-	if (fd != -1) {
-		uint8_t buff[2];
-		buff[0] = address;
-		buff[1] = data;
-		if (write(fd, buff, sizeof(buff)) != 2) {
-			syslog(LOG_ERR,
-					"Failed to write to I2C Slave 0x%x @ register 0x%x [write_byte():write %d]",
-					_i2caddr, address, errno);
-			return (-1);
-		} else {
-			syslog(LOG_INFO, "Wrote to I2C Slave 0x%x @ register 0x%x [0x%x]",
-					_i2caddr, address, data);
-			return (-1);
-		}
-	} else {
-		syslog(LOG_INFO, "Device File not available. Aborting write");
-		return (-1);
+	if (ioctl(file_i2c, I2C_SLAVE, address) < 0)
+	{
+		printf("Failed to acquire bus access and/or talk to slave.\n");
+		//ERROR HANDLING; you can check errno to see what went wrong
+		return;
 	}
-	return 0;
 }
-//! Open device file for I2C Device
-void I2C::openfd() {
-	if ((fd = open(busfile, O_RDWR)) < 0) {
-		syslog(LOG_ERR, "Couldn't open I2C Bus %d [openfd():open %d]", _i2cbus,
-				errno);
+
+void i2c_read_byte(int length, unsigned char buffer){
+	if (read(file_i2c, buffer, length) != length)		//read() returns the number of bytes actually read, if it doesn't match then an error occurred (e.g. no response from the device)
+	{
+		//ERROR HANDLING: i2c transaction failed
+		printf("Failed to read from the i2c bus.\n");
 	}
-	if (ioctl(fd, I2C_SLAVE, _i2caddr) < 0) {
-		syslog(LOG_ERR, "I2C slave %d failed [openfd():ioctl %d]", _i2caddr,
-				errno);
+	else
+	{
+		printf("Data read: %s\n", buffer);
+	}
+
+}
+
+void i2c_write_byte(int address, int length){
+	buffer[0] = 0x01;
+	buffer[1] = 0x02;
+	if (write(file_i2c, buffer, length) != length)		//write() returns the number of bytes actually written, if it doesn't match then an error occurred (e.g. no response from the device)
+	{
+		/* ERROR HANDLING: i2c transaction failed */
+		printf("Failed to write to the i2c bus.\n");
 	}
 }
