@@ -4,6 +4,7 @@ Regler:
 - Aldri push kode til master som du ikke er sikker på at kompilerer (lag ny branch for nye features)
 
 Installere Raspbian Jessie: https://www.raspberrypi.org/documentation/installation/installing-images/
+Mens vi utvikler kan vi bruke fullversjonen med GUI, men etter hvert bør vi gå over til minimal install for bedre ytelse
 
 Wifi: https://oshlab.com/esp8266-raspberry-pi-gpio-wifi/
 
