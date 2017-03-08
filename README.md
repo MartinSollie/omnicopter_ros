@@ -9,3 +9,6 @@ Installere ROS: http://wiki.ros.org/ROSberryPi/Installing%20ROS%20Kinetic%20on%2
 
 Installere RTIMULib: https://github.com/RPi-Distro/RTIMULib/tree/master/Linux
 
+Last ned Eigen herfra: http://eigen.tuxfamily.org/index.php?title=Main_Page#Download
+Pakk ut filene og kopier mappa "Eigen" til /usr/local/include
+
