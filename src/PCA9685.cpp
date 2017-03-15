@@ -33,7 +33,7 @@
 #include <errno.h>
 #include <math.h>
 
-#include "PCA9685.h"
+#include <omnicopter_ros/PCA9685.h>
 
 //! Constructor takes bus and address arguments
 /*!
@@ -62,7 +62,7 @@ void PCA9685::reset() {
  */
 void PCA9685::setPWMFreq(int freq) {
 
-		uint8_t prescale_val = (CLOCK_FREQ / 4096 / freq)  - 1;
+		uint8_t prescale_val = round(CLOCK_FREQ / 4096 /(float) freq)  - 1;
 		i2c->write_byte(MODE1, 0x10); //sleep
 		i2c->write_byte(PRE_SCALE, prescale_val); // multiplyer for PWM frequency
 		i2c->write_byte(MODE1, 0x80); //restart
@@ -75,8 +75,8 @@ void PCA9685::setPWMFreq(int freq) {
  \param value 0-4095 value for PWM
  */
 void PCA9685::setPWM(uint8_t motor, float us) {
-	float value = round(us * (4096/2500)); //@400Hz
-	setPWM(motor, 0, (int) value));
+	float value = round(us * (4096/2500.0)); //@400Hz
+	setPWM(motor, 0, (int) value);
 }
 //! PWM a single channel with custom on time
 /*!
@@ -97,9 +97,9 @@ void PCA9685::setPWM(uint8_t motor, int on_value, int off_value) {
  */
 int PCA9685::getPWM(uint8_t motor){
 	int motorval = 0;
-	motorval = i2c->read_byte(MOTOR0_OFF_H + MOTOR_MULTIPLYER * (led-1));
+	motorval = i2c->read_byte(MOTOR0_OFF_H + MOTOR_MULTIPLYER * (motor-1));
 	motorval = motorval & 0xf;
 	motorval <<= 8;
-	motorval += i2c->read_byte(MOTOR0_OFF_L + MOTOR_MULTIPLYER * (led-1));
+	motorval += i2c->read_byte(MOTOR0_OFF_L + MOTOR_MULTIPLYER * (motor-1));
 	return motorval;
 }

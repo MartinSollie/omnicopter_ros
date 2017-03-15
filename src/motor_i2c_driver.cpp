@@ -3,8 +3,20 @@
 #include <omnicopter_ros/PCA9685.h>
 #include <omnicopter_ros/I2C.h>
 
+PCA9685 motorPWM(1,400);
+
+
 void commandCallback(const omnicopter_ros::MotorCommand& input) {
 	//Write command to PWM driver board
+        motorPWM.setPWM(1, input.motor1_usec);
+        motorPWM.setPWM(2, input.motor2_usec);
+        motorPWM.setPWM(3, input.motor3_usec);
+        motorPWM.setPWM(4, input.motor4_usec);
+        motorPWM.setPWM(5, input.motor5_usec);
+        motorPWM.setPWM(6, input.motor6_usec);
+        motorPWM.setPWM(7, input.motor7_usec);
+        motorPWM.setPWM(8, input.motor8_usec);
+
 }
 
 
@@ -17,15 +29,14 @@ int main(int argc, char **argv){
 	// Initialize I2C
 
 	//READ TESTING:
-	i2c = new I2C(1,70);
-
-  while(1){
-    int buf = 0;
-		printf("Reading from i2c...\n");
-    buf = i2c->read_byte(0x68)
-    printf("IMU: %d\n", buf);
-	}
-	//END READ TESTING
-
+	//I2C i2c(1,70
+	motorPWM.setPWM(1, 900);
+	motorPWM.setPWM(2, 900);
+	motorPWM.setPWM(3, 900);
+	motorPWM.setPWM(4, 900);
+	motorPWM.setPWM(5, 900);
+	motorPWM.setPWM(6, 900);
+	motorPWM.setPWM(7, 900);
+	motorPWM.setPWM(8, 900);
 	ros::spin();
 }

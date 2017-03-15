@@ -106,3 +106,4 @@ void I2C::openfd() {
 		syslog(LOG_ERR, "I2C slave %d failed [openfd():ioctl %d]", _i2caddr,
 				errno);
 	}
+}
