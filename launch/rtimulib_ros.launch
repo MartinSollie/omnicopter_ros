@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <launch>
-    <node pkg="rtimulib_ros" type="rtimulib_ros" name="rtimulib_node" output="screen">
-        <param name="calibration_file_path" value="$(find rtimulib_ros)/config"/>
+    <node pkg="omnicopter_ros" type="rtimulib_ros" name="rtimulib_node" output="screen">
+        <param name="calibration_file_path" value="$(find omnicopter_ros)/config"/>
         <param name="calibration_file_name" value="RTIMULib" />
         <param name="frame_id" value="map"/>
         <param name="topic_name" value="imu"/>
