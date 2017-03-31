@@ -26,10 +26,6 @@ int main(int argc, char **argv){
 
 	ros::Subscriber motor_cmd_sub = nh.subscribe("motor_commands", 1, commandCallback);
 
-	// Initialize I2C
-
-	//READ TESTING:
-	//I2C i2c(1,70
 	motorPWM.setPWM(1, 900);
 	motorPWM.setPWM(2, 900);
 	motorPWM.setPWM(3, 900);
