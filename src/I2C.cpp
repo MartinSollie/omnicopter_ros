@@ -70,6 +70,39 @@ uint8_t I2C::read_byte(uint8_t address) {
 	}
 
 }
+
+//! Read a block of bytes from I2C bus
+/*!
+ \param address start register address to read from
+ \param data byte array to write the read data to
+ \param bytes_to_read number of bytes to read
+ */
+bool I2C::read_block(uint8_t address, uint8_t* data, uint8_t bytes_to_read){
+	if (fd != -1) {
+		uint8_t buff[BUFFER_SIZE];
+		buff[0] = address;
+		if (write(fd, buff, BUFFER_SIZE) != BUFFER_SIZE) {
+			syslog(LOG_ERR,
+					"I2C slave 0x%x failed to go to register 0x%x [read_byte():write %d]",
+					_i2caddr, address, errno);
+			return false;
+		} else {
+			if (read(fd, data, bytes_to_read) != bytes_to_read) {
+				syslog(LOG_ERR,
+						"Could not read from I2C slave 0x%x, register 0x%x [read_byte():read %d]",
+						_i2caddr, address, errno);
+				return false;
+			} else {
+				return true;
+			}
+		}
+	} else {
+		syslog(LOG_ERR, "Device File not available. Aborting read");
+		return false;
+	}
+}
+
+
 //! Write a single byte from a I2C Device
 /*!
  \param address register address to write to

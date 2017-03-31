@@ -1,3 +1,4 @@
+
 /*
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -35,6 +36,7 @@ public:
 	uint8_t dataBuffer[BUFFER_SIZE];
 	uint8_t read_byte(uint8_t);
 	uint8_t write_byte(uint8_t, uint8_t);
+	bool read_block(uint8_t, uint8_t*, uint8_t);
 private:
 	int _i2caddr;
 	int _i2cbus;

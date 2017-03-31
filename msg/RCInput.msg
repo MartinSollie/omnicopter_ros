@@ -1,6 +1,8 @@
 Header header
-float32 roll
-float32 pitch
-float32 throttle
-float32 yawrate
+float32 rollstick
+float32 pitchstick
+float32 throttlestick
+float32 yawstick
+ControlMode rc_mode
+bool arm
 

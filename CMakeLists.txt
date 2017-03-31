@@ -15,6 +15,7 @@ add_message_files(
 	FILES
     RCInput.msg
     MotorCommand.msg
+    ControlMode.msg
 )
 
 #Generate added messages and services with any dependencies listed here
@@ -34,7 +35,7 @@ include_directories(include ${catkin_INCLUDE_DIRS})
 #Add all executables
 add_executable(commander src/commander.cpp)
 add_executable(motor_i2c_driver src/motor_i2c_driver.cpp src/I2C.cpp src/PCA9685.cpp)
-add_executable(rc_i2c_driver src/rc_i2c_driver.cpp)
+add_executable(rc_i2c_driver src/rc_i2c_driver.cpp src/I2C.cpp)
 add_executable(attitude_controller src/attitude_controller.cpp)
 add_executable(position_controller src/position_controller.cpp)
 add_executable(control_allocation src/control_allocation.cpp)
