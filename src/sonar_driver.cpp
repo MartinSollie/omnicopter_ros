@@ -19,7 +19,6 @@ int main(int argc, char **argv){
 	std_msgs::Float32 msg;
 
 	while(ros::ok()){
-		//Read 7 channels (14 bytes)
 		if(rc_i2c.read_block(0, data, 2)){
 			uint8_t byte_h = data[0];
 			uint8_t byte_l = data[1];
