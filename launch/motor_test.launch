@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<launch>
+	<node pkg="omnicopter_ros" type="motor_i2c_driver" name="motor_i2c_driver" />
+	<node pkg="omnicopter_ros" type="motor_tester" name="motor_tester" />
+</launch>
