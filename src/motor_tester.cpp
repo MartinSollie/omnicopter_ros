@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 #include <omnicopter_ros/MotorCommand.h>
 #include <iostream>
+#include <queue>
 
 int main(int argc, char **argv){
 	ros::init(argc, argv, "motor_tester");
@@ -115,6 +116,6 @@ int main(int argc, char **argv){
 			std::cout << "Syntax error: command not recognized" << std::endl;
 		}
 	}
-
+}
 
 			
