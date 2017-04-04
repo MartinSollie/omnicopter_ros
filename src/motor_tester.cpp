@@ -93,25 +93,25 @@ int main(int argc, char **argv){
 					msg.motor1_usec = motor_usec;
 					break;
 				case 2:
-					msg.motor1_usec = motor_usec;
+					msg.motor2_usec = motor_usec;
 					break;
 				case 3:
-					msg.motor1_usec = motor_usec;
+					msg.motor3_usec = motor_usec;
 					break;
 				case 4:
-					msg.motor1_usec = motor_usec;
+					msg.motor4_usec = motor_usec;
 					break;
 				case 5:
-					msg.motor1_usec = motor_usec;
+					msg.motor5_usec = motor_usec;
 					break;
 				case 6:
-					msg.motor1_usec = motor_usec;
+					msg.motor6_usec = motor_usec;
 					break;
 				case 7:
-					msg.motor1_usec = motor_usec;
+					msg.motor7_usec = motor_usec;
 					break;
 				case 8:
-					msg.motor1_usec = motor_usec;
+					msg.motor8_usec = motor_usec;
 					break;
 			}
 			msg.header.stamp = ros::Time::now();
