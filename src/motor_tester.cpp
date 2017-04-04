@@ -17,6 +17,14 @@ int main(int argc, char **argv){
 	std::string input;
 	std::string command, tmp;
 	omnicopter_ros::MotorCommand msg;
+	msg.motor1_usec = 900;
+	msg.motor2_usec = 900;
+	msg.motor3_usec = 900;
+	msg.motor4_usec = 900;
+	msg.motor5_usec = 900;
+	msg.motor6_usec = 900;
+	msg.motor7_usec = 900;
+	msg.motor8_usec = 900;
 
 	while(1)
 	{
