@@ -52,14 +52,19 @@ int main(int argc, char **argv){
 				std::cout << "Syntax error: 1 argument expected" << std::endl;
 				continue;
 			}
-			msg.motor1_usec = std::atof(v.front().c_str());
-			msg.motor2_usec = std::atof(v.front().c_str());
-			msg.motor3_usec = std::atof(v.front().c_str());
-			msg.motor4_usec = std::atof(v.front().c_str());
-			msg.motor5_usec = std::atof(v.front().c_str());
-			msg.motor6_usec = std::atof(v.front().c_str());
-			msg.motor7_usec = std::atof(v.front().c_str());
-			msg.motor8_usec = std::atof(v.front().c_str());
+			int motor_usec = std::atof(v.front().c_str());
+			if(motor_usec < 800 || motor_usec > 2200){
+				std::cout << "Invalid motor command" << std::endl;
+				continue;
+			} 
+			msg.motor1_usec = motor_usec;
+			msg.motor2_usec = motor_usec;
+			msg.motor3_usec = motor_usec;
+			msg.motor4_usec = motor_usec;
+			msg.motor5_usec = motor_usec;
+			msg.motor6_usec = motor_usec;
+			msg.motor7_usec = motor_usec;
+			msg.motor8_usec = motor_usec;
 			msg.header.stamp = ros::Time::now();
 			motor_pub.publish(msg);
 		}
