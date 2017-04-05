@@ -3,7 +3,7 @@
 #include <omnicopter_ros/PCA9685.h>
 #include <omnicopter_ros/I2C.h>
 
-PCA9685 motorPWM(1,400);
+PCA9685 motorPWM(1,0x40);
 
 
 void commandCallback(const omnicopter_ros::MotorCommand& input) {
