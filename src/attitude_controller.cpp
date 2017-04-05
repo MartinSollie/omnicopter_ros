@@ -1,13 +1,21 @@
 #include <ros/ros.h>
-#include <omnicopter_ros/AttSp.h>
+#include <omnicopter_ros/RCInput.h>
 #include <geometry_msgs/Vector3Stamped.h>
 #include <sensor_msgs/Imu.h>
 #include <Eigen/Geometry>
 #include <cmath>
 #include <geometry_msgs/Quaternion.h>
+#include <stdio.h>
 
 #define T_ATT 0.2 // Attitude control time constant
 #define T_W 0.01 // Angular rate control time constant
+
+#define MAX_ROLL 0.7f
+#define MAX_PITCH 0.7f
+
+#define MAX_PITCHRATE_CMD 3.0f
+#define MAX_ROLLRATE_CMD 3.0f
+#define MAX_YAWRATE_CMD 3.0f
 
 /*
 Currently the controller only runs once when a new input is received.
@@ -23,13 +31,15 @@ const Eigen::Matrix3d J = 0.003*Eigen::Matrix3d::Identity(); //Inertia matrix
 bool imu_received = false;
 bool setpoint_received = false;
 sensor_msgs::Imu imu_data;
-omnicopter_ros::AttSp setp;
+omnicopter_ros::RCInput setp;
 
-bool hold_attitude;
+bool hold_attitude, hold_yaw;
 geometry_msgs::Quaternion q_hold;
 void doControl();
 Eigen::Vector3d control_attitude(const Eigen::Quaterniond q_des, const Eigen::Quaterniond q);
 Eigen::Vector3d control_rates(const Eigen::Vector3d w_des, const Eigen::Vector3d w);
+float yaw_h;
+
 
 void imuCallback(const sensor_msgs::Imu& input){
 	imu_data = input;
@@ -42,7 +52,7 @@ void imuCallback(const sensor_msgs::Imu& input){
 
 }
 
-void setpointCallback(const omnicopter_ros::AttSp& input){
+void setpointCallback(const omnicopter_ros::RCInput& input){
 	setp = input;
 	if(!setpoint_received){
 		setpoint_received = true;
@@ -52,30 +62,66 @@ void setpointCallback(const omnicopter_ros::AttSp& input){
 	}
 }
 
+Eigen::Quaterniond RPquaternionFromRC(const omnicopter_ros::RCInput& input){
+	Eigen::Quaterniond q;
+	float roll = MAX_ROLL*input.rollstick;
+	float pitch = MAX_PITCH*input.pitchstick;
+	yaw_h -= input.yawstick*0.03;
+	while(yaw_h > M_PI){
+		yaw_h -= 2*M_PI;
+	}
+	while(yaw_h < -M_PI){
+		yaw_h += 2*M_PI;
+	}
+	q = Eigen::AngleAxisd(yaw_h,  Eigen::Vector3d::UnitZ())
+	* Eigen::AngleAxisd(pitch,  Eigen::Vector3d::UnitY())
+	* Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitX());
+    return q;
+
+}
+
+Eigen::Vector3d ratesFromRC(const omnicopter_ros::RCInput& input){
+	return Eigen::Vector3d(input.rollstick*MAX_ROLLRATE_CMD, input.pitchstick*MAX_PITCHRATE_CMD, -input.yawstick*MAX_YAWRATE_CMD);
+}
+
+
+
 void doControl(){
 	Eigen::Quaterniond q_des;
 	Eigen::Quaterniond q_curr;
 	Eigen::Vector3d w_des;
 	Eigen::Vector3d w_curr;
+	q_curr.x() = imu_data.orientation.x;
+	q_curr.y() = imu_data.orientation.y;
+	q_curr.z() = imu_data.orientation.z;
+	q_curr.w() = imu_data.orientation.w;
 
-	if(setp.type == omnicopter_ros::AttSp::SETPOINT_TYPE_ATT){
+	if(setp.rc_mode.attitude_control_mode == omnicopter_ros::ControlMode::MODE_CONTROL_ATT){
 		//Do attitude control
 		hold_attitude = false;
-		q_des.x() = setp.q.x;
-		q_des.y() = setp.q.y;
-		q_des.z() = setp.q.z;
-		q_des.w() = setp.q.w;
-		q_curr.x() = imu_data.orientation.x;
-		q_curr.y() = imu_data.orientation.y;
-		q_curr.z() = imu_data.orientation.z;
-		q_curr.w() = imu_data.orientation.w;
+		hold_yaw = false;
+		q_des = RPquaternionFromRC(setp);
+		
 
 		w_des = control_attitude(q_des, q_curr);
 	}
-	else if(setp.type == omnicopter_ros::AttSp::SETPOINT_TYPE_RATES){
+	else if(setp.rc_mode.attitude_control_mode == omnicopter_ros::ControlMode::MODE_CONTROL_RP_ATT_Y_RATE){
+		Eigen::Vector3d w_rc = ratesFromRC(setp);
+		w_des = control_attitude(RPquaternionFromRC(setp), q_curr);
+		
+	}
+	else if(setp.rc_mode.attitude_control_mode == omnicopter_ros::ControlMode::MODE_CONTROL_YAWRATE){
+		Eigen::Vector3d w_rc = ratesFromRC(setp);
+		w_des(0) = 0;
+		w_des(1) = 0;
+		w_des(2) = w_rc(2);
+
+	}
+	else if(setp.rc_mode.attitude_control_mode == omnicopter_ros::ControlMode::MODE_CONTROL_RATES){
 		// If the rate setpoint is ~0, we want to hold the current attitude, but only sample it when the
 		// actual rate gets small so we don't get a big bounceback
-		bool zero_setpoint = std::abs(setp.wx) < 0.001 && std::abs(setp.wy) < 0.001 && std::abs(setp.wz) < 0.001;
+		Eigen::Vector3d w_rc = ratesFromRC(setp);
+		bool zero_setpoint = std::abs(w_rc(0)) < 0.001 && std::abs(w_rc(1)) < 0.001 && std::abs(w_rc(2)) < 0.001;
 		bool small_rate = std::abs(imu_data.angular_velocity.x) < 0.5 && 
 							std::abs(imu_data.angular_velocity.y) < 0.5 && 
 							std::abs(imu_data.angular_velocity.z) < 0.5;
@@ -88,10 +134,6 @@ void doControl(){
 			q_des.y() = q_hold.y;
 			q_des.z() = q_hold.z;
 			q_des.w() = q_hold.w;
-			q_curr.x() = imu_data.orientation.x;
-			q_curr.y() = imu_data.orientation.y;
-			q_curr.z() = imu_data.orientation.z;
-			q_curr.w() = imu_data.orientation.w;
 
 			w_des = control_attitude(q_des, q_curr);
 
@@ -99,9 +141,7 @@ void doControl(){
 		else{
 			// Do rate control
 			hold_attitude = false;
-			w_des(0) = setp.wx;
-			w_des(1) = setp.wy;
-			w_des(2) = setp.wz;
+			w_des = w_rc;
 			
 		}
 	}
@@ -137,7 +177,7 @@ int main(int argc, char **argv){
 	ros::init(argc, argv, "attitude_controller");
 	ros::NodeHandle nh;
 
-	ros::Subscriber att_sp_sub = nh.subscribe("att_sp",1,setpointCallback);
+	ros::Subscriber rc_sub = nh.subscribe("rc_input",1,setpointCallback);
 	ros::Subscriber imu_sub = nh.subscribe("imu",1,imuCallback);
 	torque_pub = nh.advertise<geometry_msgs::Vector3Stamped>("torque_sp",0);
 
