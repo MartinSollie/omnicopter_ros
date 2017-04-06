@@ -1,5 +1,6 @@
 #include <ros/ros.h>
 #include <omnicopter_ros/MotorCommand.h>
+#include <omnicopter_ros/RCInput.h>
 #include <iostream>
 #include <queue>
 
@@ -7,24 +8,27 @@ int main(int argc, char **argv){
 	ros::init(argc, argv, "motor_tester");
 	ros::NodeHandle nh;
 
-	ros::Publisher motor_pub = nh.advertise<omnicopter_ros::MotorCommand>("motor_commands",0);
+	ros::Publisher motor_pub = nh.advertise<omnicopter_ros::MotorCommand>("motor_commands",1);
+	ros::Publisher arm_pub = nh.advertise<omnicopter_ros::RCInput>("rc_input",1);
 
 	std::cout << "Input syntax:" << std::endl;
 	std::cout << "- Disarm all motors: 'stop'" << std::endl;
 	std::cout << "- Set speed for all motors: 'all <usec>'" << std::endl;
 	std::cout << "- Set speed for one motor: 'set <motor> <usec>'" << std::endl;
+	std::cout << "- Arm motor driver: 'arm'" << std::endl;
+	std::cout << "- Disarm motor driver: 'disarm'" << std::endl;
 
 	std::string input;
 	std::string command, tmp;
 	omnicopter_ros::MotorCommand msg;
-	msg.motor1_usec = 900;
-	msg.motor2_usec = 900;
-	msg.motor3_usec = 900;
-	msg.motor4_usec = 900;
-	msg.motor5_usec = 900;
-	msg.motor6_usec = 900;
-	msg.motor7_usec = 900;
-	msg.motor8_usec = 900;
+	msg.motor1_usec = 1500;
+	msg.motor2_usec = 1500;
+	msg.motor3_usec = 1500;
+	msg.motor4_usec = 1500;
+	msg.motor5_usec = 1500;
+	msg.motor6_usec = 1500;
+	msg.motor7_usec = 1500;
+	msg.motor8_usec = 1500;
 
 	while(1)
 	{
@@ -41,14 +45,14 @@ int main(int argc, char **argv){
 				std::cout << "Syntax error: 0 arguments expected" << std::endl;
 				continue;
 			}
-			msg.motor1_usec = 900;
-			msg.motor2_usec = 900;
-			msg.motor3_usec = 900;
-			msg.motor4_usec = 900;
-			msg.motor5_usec = 900;
-			msg.motor6_usec = 900;
-			msg.motor7_usec = 900;
-			msg.motor8_usec = 900;
+			msg.motor1_usec = 1500;
+			msg.motor2_usec = 1500;
+			msg.motor3_usec = 1500;
+			msg.motor4_usec = 1500;
+			msg.motor5_usec = 1500;
+			msg.motor6_usec = 1500;
+			msg.motor7_usec = 1500;
+			msg.motor8_usec = 1500;
 			msg.header.stamp = ros::Time::now();
 			motor_pub.publish(msg);
 		}
@@ -124,6 +128,16 @@ int main(int argc, char **argv){
 			}
 			msg.header.stamp = ros::Time::now();
 			motor_pub.publish(msg);
+		}
+		else if(command == "arm"){
+			omnicopter_ros::RCInput arm_msg;
+        		arm_msg.arm = true;
+        		arm_pub.publish(arm_msg);
+		}
+		else if(command == "disarm"){
+			omnicopter_ros::RCInput arm_msg;
+        		arm_msg.arm = false;
+        		arm_pub.publish(arm_msg);
 		}
 		else{ 
 			std::cout << "Syntax error: command not recognized" << std::endl;

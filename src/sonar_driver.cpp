@@ -13,13 +13,13 @@ int main(int argc, char **argv){
 	//Initialize I2C RC stuff
 	I2C rc_i2c(1, I2C_SLAVE);
 
-	uint8_t data[2];
+	uint8_t data[3];
 
 	ros::Rate loop_rate(20);
 	std_msgs::Float32 msg;
 
 	while(ros::ok()){
-		if(rc_i2c.read_block(0, data, 2)){
+		if(rc_i2c.read_block(0, data, 3)){
 			uint8_t byte_h = data[0];
 			uint8_t byte_l = data[1];
 			uint8_t range = byte_l | byte_h << 8;
