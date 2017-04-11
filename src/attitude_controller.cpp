@@ -27,7 +27,7 @@ TODO: fix handling of temporary failsafe (reset setpoint_received, imu_received)
 */
 
 ros::Publisher torque_pub;
-const Eigen::Matrix3d J = 0.003*Eigen::Matrix3d::Identity(); //Inertia matrix
+const Eigen::Matrix3d J = 0.0003*Eigen::Matrix3d::Identity(); //Inertia matrix
 bool imu_received = false;
 bool setpoint_received = false;
 sensor_msgs::Imu imu_data;
@@ -39,7 +39,8 @@ void doControl();
 Eigen::Vector3d control_attitude(const Eigen::Quaterniond q_des, const Eigen::Quaterniond q);
 Eigen::Vector3d control_rates(const Eigen::Vector3d w_des, const Eigen::Vector3d w);
 float yaw_h;
-
+Eigen::Quaterniond q_setp;
+Eigen::Quaterniond q_err;
 
 void imuCallback(const sensor_msgs::Imu& input){
 	imu_data = input;
@@ -57,15 +58,14 @@ void setpointCallback(const omnicopter_ros::RCInput& input){
 	if(!setpoint_received){
 		setpoint_received = true;
 	}
-	if(imu_received){
-		doControl();
-	}
+	//if(imu_received){
+	//	doControl();
+	//}
 }
 
-Eigen::Quaterniond RPquaternionFromRC(const omnicopter_ros::RCInput& input){
-	Eigen::Quaterniond q;
-	float roll = MAX_ROLL*input.rollstick;
-	float pitch = MAX_PITCH*input.pitchstick;
+Eigen::Quaterniond RPquaternionFromRC(const omnicopter_ros::RCInput& input, bool zeroRP){
+	float roll = zeroRP ? 0 : MAX_ROLL*input.rollstick;
+	float pitch = zeroRP ? 0 : MAX_PITCH*input.pitchstick;
 	yaw_h -= input.yawstick*0.03;
 	while(yaw_h > M_PI){
 		yaw_h -= 2*M_PI;
@@ -73,11 +73,10 @@ Eigen::Quaterniond RPquaternionFromRC(const omnicopter_ros::RCInput& input){
 	while(yaw_h < -M_PI){
 		yaw_h += 2*M_PI;
 	}
-	q = Eigen::AngleAxisd(yaw_h,  Eigen::Vector3d::UnitZ())
+	q_setp = Eigen::AngleAxisd(yaw_h,  Eigen::Vector3d::UnitZ())
 	* Eigen::AngleAxisd(pitch,  Eigen::Vector3d::UnitY())
 	* Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitX());
-    return q;
-
+    return q_setp;
 }
 
 Eigen::Vector3d ratesFromRC(const omnicopter_ros::RCInput& input){
@@ -96,7 +95,7 @@ void doControl(){
 	q_curr.z() = imu_data.orientation.z;
 	q_curr.w() = imu_data.orientation.w;
 
-	if(setp.rc_mode.attitude_control_mode == omnicopter_ros::ControlMode::MODE_CONTROL_ATT){
+	/*if(setp.rc_mode.attitude_control_mode == omnicopter_ros::ControlMode::MODE_CONTROL_ATT){
 		//Do attitude control
 		hold_attitude = false;
 		hold_yaw = false;
@@ -105,16 +104,14 @@ void doControl(){
 
 		w_des = control_attitude(q_des, q_curr);
 	}
-	else if(setp.rc_mode.attitude_control_mode == omnicopter_ros::ControlMode::MODE_CONTROL_RP_ATT_Y_RATE){
+	else */if(setp.rc_mode.attitude_control_mode == omnicopter_ros::ControlMode::MODE_CONTROL_RP_ATT_Y_RATE){
 		Eigen::Vector3d w_rc = ratesFromRC(setp);
-		w_des = control_attitude(RPquaternionFromRC(setp), q_curr);
+		w_des = control_attitude(RPquaternionFromRC(setp, false), q_curr);
 		
 	}
 	else if(setp.rc_mode.attitude_control_mode == omnicopter_ros::ControlMode::MODE_CONTROL_YAWRATE){
 		Eigen::Vector3d w_rc = ratesFromRC(setp);
-		w_des(0) = 0;
-		w_des(1) = 0;
-		w_des(2) = w_rc(2);
+                w_des = control_attitude(RPquaternionFromRC(setp, true), q_curr);
 
 	}
 	else if(setp.rc_mode.attitude_control_mode == omnicopter_ros::ControlMode::MODE_CONTROL_RATES){
@@ -158,7 +155,7 @@ void doControl(){
 }
 
 Eigen::Vector3d control_attitude(const Eigen::Quaterniond q_des, const Eigen::Quaterniond q){
-	Eigen::Quaterniond q_err = q.inverse()*q_des;
+	q_err = q.inverse()*q_des;
 	// Add feedforward if we need trajectory tracking
 	if (q_err.w() >= 0){
 		return 2/T_ATT*Eigen::Vector3d(q_err.x(), q_err.y(), q_err.z());

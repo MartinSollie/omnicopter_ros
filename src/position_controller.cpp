@@ -6,6 +6,7 @@
 #include <Eigen/Geometry>
 
 ros::Publisher force_pub;
+Eigen::Quaterniond q;
 Eigen::Matrix3d R; // v_body = R.inverse()*v_enu
 
 void setpointCallback(const omnicopter_ros::RCInput& input){
@@ -13,15 +14,16 @@ void setpointCallback(const omnicopter_ros::RCInput& input){
 	if(input.rc_mode.position_control_mode == omnicopter_ros::ControlMode::MODE_CONTROL_FORCE_BODY_UP){
 		msg.vector.x = 0;
 		msg.vector.y = 0;
-		msg.vector.z = (input.throttlestick+1)*5; // 0-10 Newtons
+		msg.vector.z = (input.throttlestick+1)*2;
 	}
 	else if(input.rc_mode.position_control_mode == omnicopter_ros::ControlMode::MODE_CONTROL_FORCE_BODY){
-		msg.vector.x = input.pitchstick*3;// -3 - 3 N
-		msg.vector.y = -input.rollstick*3; // -3 - 3 N
-		msg.vector.z = (input.throttlestick+1)*5; // 0-10 N
+		msg.vector.x = input.pitchstick*1;// -3 - 3 N
+		msg.vector.y = -input.rollstick*1; // -3 - 3 N
+		msg.vector.z = (input.throttlestick+1)*2;
 	}
 	else if(input.rc_mode.position_control_mode == omnicopter_ros::ControlMode::MODE_CONTROL_FORCE_ENU){
-		Eigen::Vector3d force_body = R.inverse()*Eigen::Vector3d(input.pitchstick*3, -input.rollstick*3, 5*(input.throttlestick+1));
+		R = q.toRotationMatrix();
+		Eigen::Vector3d force_body = R.inverse()*Eigen::Vector3d(input.pitchstick*1, -input.rollstick*1, 2*(input.throttlestick+1));
 		msg.vector.x = force_body(0);
 		msg.vector.y = force_body(1);
 		msg.vector.z = force_body(2);
@@ -35,12 +37,10 @@ void setpointCallback(const omnicopter_ros::RCInput& input){
 }
 
 void imuCallback(const sensor_msgs::Imu& input){
-	Eigen::Quaterniond q;
 	q.x() = input.orientation.x;
 	q.y() = input.orientation.y;
 	q.z() = input.orientation.z;
 	q.w() = input.orientation.w;
-	R = q.toRotationMatrix();
 }
 
 int main(int argc, char **argv){

@@ -8,7 +8,7 @@ bool armed;
 PCA9685 motorPWM(1,0x40);
 
 #define MIN_THROTTLE 30
-#define MAX_THROTTLE 150
+#define MAX_THROTTLE 250
 
 int limitPWM(int input){
 	if(input < 1500+MIN_THROTTLE && input > 1500-MIN_THROTTLE){
