@@ -1,16 +1,22 @@
 #include <ros/ros.h>
 #include <sensor_msgs/Imu.h>
 #include <stdio.h>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <Eigen/Geometry>
 
 #define RAD2DEG 3.14159265358979/180
 
 double roll, pitch, yaw;
-tf2::Quaternion q_tmp;
+Eigen::Quaterniond q_tmp;
 
 void imuCallback(const sensor_msgs::Imu& input){
-	tf2::fromMsg(input.orientation, q_tmp);
-    tf2::Matrix3x3(q_tmp).getRPY(roll, pitch, yaw);
+
+	q_tmp.x() = input.orientation.x;
+	q_tmp.y() = input.orientation.y;
+	q_tmp.z() = input.orientation.z;
+	q_tmp.w() = input.orientation.w;
+
+    Eigen::Vector3d euler = quaternion.toRotationMatrix().eulerAngles(2, 1, 0);
+  	yaw = euler[2]; pitch = euler[1]; roll = euler[0];
     roll *= RAD2DEG;
     pitch *= RAD2DEG;
     yaw *= RAD2DEG;
