@@ -45,6 +45,7 @@ add_executable(control_allocation src/control_allocation.cpp)
 add_executable(rtimulib_ros src/rtimulib_ros.cpp)
 add_executable(sonar_driver src/sonar_driver.cpp src/I2C.cpp)
 add_executable(motor_tester src/motor_tester.cpp)
+add_executable(print_euler src/print_euler.cpp)
 
 add_dependencies(motor_i2c_driver ${${PROJECT_NAME}_EXPORTED_TARGETS})
 add_dependencies(rc_i2c_driver ${${PROJECT_NAME}_EXPORTED_TARGETS})
@@ -60,5 +61,6 @@ target_link_libraries(control_allocation ${catkin_LIBRARIES})
 target_link_libraries(rtimulib_ros ${catkin_LIBRARIES} RTIMULib)
 target_link_libraries(sonar_driver ${catkin_LIBRARIES})
 target_link_libraries(motor_tester ${catkin_LIBRARIES})
+target_link_libraries(print_euler ${catkin_LIBRARIES})
 
 
