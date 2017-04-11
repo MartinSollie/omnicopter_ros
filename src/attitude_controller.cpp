@@ -6,6 +6,7 @@
 #include <cmath>
 #include <geometry_msgs/Quaternion.h>
 #include <stdio.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 #define T_ATT 0.2 // Attitude control time constant
 #define T_W 0.01 // Angular rate control time constant
@@ -45,6 +46,11 @@ Eigen::Quaterniond q_err;
 void imuCallback(const sensor_msgs::Imu& input){
 	imu_data = input;
 	if(!imu_received){
+		double roll, pitch, yaw;
+		tf2::Quaternion q_tmp;
+		tf2::fromMsg(input.orientation, q_tmp);
+    	tf2::Matrix3x3(q_tmp).getRPY(roll, pitch, yaw);
+    	yaw_h = yaw;
 		imu_received = true;
 	}
 	if(setpoint_received){
