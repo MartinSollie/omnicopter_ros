@@ -27,7 +27,11 @@ TODO: fix handling of temporary failsafe (reset setpoint_received, imu_received)
 */
 
 ros::Publisher torque_pub;
-const Eigen::Matrix3d J = 0.0003*Eigen::Matrix3d::Identity(); //Inertia matrix
+
+// If J is later changed to not be multiple of I, then make sure rate controller is correct
+const float J_val = 0.003; //Diagonal value of J
+const Eigen::Matrix3d J = J_val*Eigen::Matrix3d::Identity(); //Inertia matrix
+
 bool imu_received = false;
 bool setpoint_received = false;
 sensor_msgs::Imu imu_data;
@@ -41,6 +45,11 @@ Eigen::Vector3d control_rates(const Eigen::Vector3d w_des, const Eigen::Vector3d
 float yaw_h;
 Eigen::Quaterniond q_setp;
 Eigen::Quaterniond q_err;
+
+Eigen::Quaterniond q_des;
+Eigen::Quaterniond q_curr;
+Eigen::Vector3d w_des;
+Eigen::Vector3d w_curr;
 
 void imuCallback(const sensor_msgs::Imu& input){
 	imu_data = input;
@@ -93,10 +102,6 @@ Eigen::Vector3d ratesFromRC(const omnicopter_ros::RCInput& input){
 
 
 void doControl(){
-	Eigen::Quaterniond q_des;
-	Eigen::Quaterniond q_curr;
-	Eigen::Vector3d w_des;
-	Eigen::Vector3d w_curr;
 	q_curr.x() = imu_data.orientation.x;
 	q_curr.y() = imu_data.orientation.y;
 	q_curr.z() = imu_data.orientation.z;
@@ -111,14 +116,14 @@ void doControl(){
 
 		w_des = control_attitude(q_des, q_curr);
 	}
-	else */if(setp.rc_mode.attitude_control_mode == omnicopter_ros::ControlMode::MODE_CONTROL_RP_ATT_Y_RATE){
+	else */
+	if(setp.rc_mode.attitude_control_mode == omnicopter_ros::ControlMode::MODE_CONTROL_RP_ATT_Y_RATE){
 		Eigen::Vector3d w_rc = ratesFromRC(setp);
 		w_des = control_attitude(RPquaternionFromRC(setp, false), q_curr);
-		
 	}
 	else if(setp.rc_mode.attitude_control_mode == omnicopter_ros::ControlMode::MODE_CONTROL_YAWRATE){
 		Eigen::Vector3d w_rc = ratesFromRC(setp);
-                w_des = control_attitude(RPquaternionFromRC(setp, true), q_curr);
+		w_des = control_attitude(RPquaternionFromRC(setp, true), q_curr);
 
 	}
 	else if(setp.rc_mode.attitude_control_mode == omnicopter_ros::ControlMode::MODE_CONTROL_RATES){
@@ -149,12 +154,15 @@ void doControl(){
 			
 		}
 	}
+	else{
+		printf("Unknown attitude control mode!\n");
+		return;
+	}
 	w_curr(0) = imu_data.angular_velocity.x;
 	w_curr(1) = imu_data.angular_velocity.y;
 	w_curr(2) = imu_data.angular_velocity.z;
 
 	Eigen::Vector3d torque_out = control_rates(w_des, w_curr);
-	geometry_msgs::Vector3Stamped msg;
 	msg.vector.x = torque_out(0);
 	msg.vector.y = torque_out(1);
 	msg.vector.z = torque_out(2);
@@ -163,18 +171,22 @@ void doControl(){
 
 Eigen::Vector3d control_attitude(const Eigen::Quaterniond q_des, const Eigen::Quaterniond q){
 	q_err = q.inverse()*q_des;
-	// Add feedforward if we need trajectory tracking
+
 	if (q_err.w() >= 0){
-		return 2/T_ATT*Eigen::Vector3d(q_err.x(), q_err.y(), q_err.z());
+		return 2.0/T_ATT*Eigen::Vector3d(q_err.x(), q_err.y(), q_err.z());
 	}
 	else {
-		return -2/T_ATT*Eigen::Vector3d(q_err.x(), q_err.y(), q_err.z());
+		return -2.0/T_ATT*Eigen::Vector3d(q_err.x(), q_err.y(), q_err.z());
 	}
 	
 }
 
 Eigen::Vector3d control_rates(const Eigen::Vector3d w_des, const Eigen::Vector3d w){
-	return 1.0/T_W*J*(w_des-w)+w.cross(J*w);
+	//return 1.0/T_W*J*(w_des-w)+w.cross(J*w);
+
+	//Maybe this is faster? If J is a multiple of I, then the cross term is 0
+	return Eigen::Vector3d((1.0/T_W)*J_val*(w_des(0)-w(0)), (1.0/T_W)*J_val*(w_des(1)-w(1)), (1.0/T_W)*J_val*(w_des(2)-w(2)));
+
 }
 
 int main(int argc, char **argv){
