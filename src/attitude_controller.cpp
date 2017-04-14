@@ -6,6 +6,7 @@
 #include <cmath>
 #include <geometry_msgs/Quaternion.h>
 #include <stdio.h>
+#include <RTIMULib.h>
 
 #define T_ATT 0.3 // Attitude control time constant
 #define T_W 0.03 // Angular rate control time constant
@@ -34,11 +35,10 @@ const Eigen::Matrix3d J = J_val*Eigen::Matrix3d::Identity(); //Inertia matrix
 
 bool imu_received = false;
 bool setpoint_received = false;
-sensor_msgs::Imu imu_data;
 omnicopter_ros::RCInput setp;
 
 bool hold_attitude, hold_yaw;
-geometry_msgs::Quaternion q_hold;
+Eigen::Quaterniond q_hold;
 void doControl();
 Eigen::Vector3d control_attitude(const Eigen::Quaterniond q_des, const Eigen::Quaterniond q);
 Eigen::Vector3d control_rates(const Eigen::Vector3d w_des, const Eigen::Vector3d w);
@@ -51,6 +51,7 @@ Eigen::Quaterniond q_curr;
 Eigen::Vector3d w_des;
 Eigen::Vector3d w_curr;
 
+/*
 void imuCallback(const sensor_msgs::Imu& input){
 	imu_data = input;
 	if(!imu_received){
@@ -76,7 +77,7 @@ void imuCallback(const sensor_msgs::Imu& input){
 		doControl();
 	}
 
-}
+}*/
 
 void setpointCallback(const omnicopter_ros::RCInput& input){
 	setp = input;
@@ -113,11 +114,6 @@ Eigen::Vector3d ratesFromRC(const omnicopter_ros::RCInput& input){
 
 
 void doControl(){
-	q_curr.x() = imu_data.orientation.x;
-	q_curr.y() = imu_data.orientation.y;
-	q_curr.z() = imu_data.orientation.z;
-	q_curr.w() = imu_data.orientation.w;
-
 	/*if(setp.rc_mode.attitude_control_mode == omnicopter_ros::ControlMode::MODE_CONTROL_ATT){
 		//Do attitude control
 		hold_attitude = false;
@@ -142,20 +138,15 @@ void doControl(){
 		// actual rate gets small so we don't get a big bounceback
 		Eigen::Vector3d w_rc = ratesFromRC(setp);
 		bool zero_setpoint = std::abs(w_rc(0)) < 0.001 && std::abs(w_rc(1)) < 0.001 && std::abs(w_rc(2)) < 0.001;
-		bool small_rate = false;//std::abs(imu_data.angular_velocity.x) < 0.5 && 
-					//		std::abs(imu_data.angular_velocity.y) < 0.5 && 
-					//		std::abs(imu_data.angular_velocity.z) < 0.5;
+		bool small_rate = false;//std::abs(w_curr(0)) < 0.5 && 
+					//		std::abs(w_curr(1)) < 0.5 && 
+					//		std::abs(w_curr(2)) < 0.5;
 		if(zero_setpoint && small_rate){
 			if(!hold_attitude){
-				q_hold = imu_data.orientation;
+				q_hold = q_curr;
 				hold_attitude = true;
 			}
-			q_des.x() = q_hold.x;
-			q_des.y() = q_hold.y;
-			q_des.z() = q_hold.z;
-			q_des.w() = q_hold.w;
-
-			w_des = control_attitude(q_des, q_curr);
+			w_des = control_attitude(q_hold, q_curr);
 
 		}
 		else{
@@ -169,9 +160,6 @@ void doControl(){
 		printf("Unknown attitude control mode!\n");
 		return;
 	}
-	w_curr(0) = imu_data.angular_velocity.x;
-	w_curr(1) = imu_data.angular_velocity.y;
-	w_curr(2) = imu_data.angular_velocity.z;
 	Eigen::Vector3d torque_out = control_rates(w_des, w_curr);
 	geometry_msgs::Vector3Stamped msg;
 	msg.header.stamp = ros::Time::now();
@@ -183,7 +171,7 @@ void doControl(){
 		msg.vector.y = 0;
 		msg.vector.z = 0;
 	}
-	printf("Yaw_h: %.2f w: % 04.2f % 04.2f % 04.2f w_des: % 04.2f % 04.2f % 04.2f tau: % 04.2f % 04.2f % 04.2f\n",yaw_h, w_curr(0), w_curr(1), w_curr(2), w_des(0), w_des(1), w_des(2), torque_out(0), torque_out(1), torque_out(2));
+//	printf("Yaw_h: %.2f w: % 04.2f % 04.2f % 04.2f w_des: % 04.2f % 04.2f % 04.2f tau: % 04.2f % 04.2f % 04.2f\n",yaw_h, w_curr(0), w_curr(1), w_curr(2), w_des(0), w_des(1), w_des(2), torque_out(0), torque_out(1), torque_out(2));
 	torque_pub.publish(msg);
 }
 
@@ -210,10 +198,71 @@ Eigen::Vector3d control_rates(const Eigen::Vector3d w_des, const Eigen::Vector3d
 int main(int argc, char **argv){
 	ros::init(argc, argv, "attitude_controller");
 	ros::NodeHandle nh;
+	ros::NodeHandle n_priv("~");
 
 	ros::Subscriber rc_sub = nh.subscribe("rc_input",1,setpointCallback);
-	ros::Subscriber imu_sub = nh.subscribe("imu",1,imuCallback);
 	torque_pub = nh.advertise<geometry_msgs::Vector3Stamped>("torque_sp",0);
 
-	ros::spin();
+	std::string calibration_file_path;
+	std::string calibration_file_name;
+	double update_rate;
+	if(!n_priv.getParam("calibration_file_path", calibration_file_path)){
+		ROS_ERROR("The calibration_file_path parameter must be set to use a calibration file.");
+	}
+	if(!n_priv.getParam("calibration_file_name", calibration_file_name)){
+		ROS_WARN("No calibration_file_name provided - default: RTIMULib.ini");
+		calibration_file_name = "RTIMULib";
+	}
+	if(!n_priv.getParam("update_rate", update_rate)){
+		ROS_WARN("No update_rate provided - default: 100 Hz");
+		update_rate = 100;
+	}
+
+	RTIMUSettings *settings = new RTIMUSettings(calibration_file_path.c_str(), calibration_file_name.c_str());
+	RTIMU *imu = RTIMU::createIMU(settings);
+	if ((imu == NULL) || (imu->IMUType() == RTIMU_TYPE_NULL)){
+		ROS_ERROR("No Imu found");
+		return -1;
+	}
+
+	// Quaternions to transform IMU data from NED to ROS ENU frame
+	Eigen::Quaterniond q_ned_enu = Eigen::AngleAxisd(M_PI,  Eigen::Vector3d::UnitX())
+					* Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitZ());
+	Eigen::Quaterniond q_aircraft_base(Eigen::AngleAxisd(M_PI,  Eigen::Vector3d::UnitX()));
+
+	// Initialise the imu object
+	imu->IMUInit();
+
+	// Set the Fusion coefficient
+	imu->setSlerpPower(0.02);
+
+	// Enable the sensors
+	imu->setGyroEnable(true);
+	imu->setAccelEnable(true);
+	imu->setCompassEnable(false); // Due to current wires near compass, the data is not good
+
+	ros::Rate loop_rate(update_rate);
+
+	while(ros::ok()){
+		ros::spinOnce();
+		while (imu->IMURead()){
+			RTIMU_DATA imu_data = imu->getIMUData();
+			q_curr.x() = imu_data.fusionQPose.x();
+			q_curr.y() = imu_data.fusionQPose.y();
+			q_curr.z() = imu_data.fusionQPose.z();
+			q_curr.w() = imu_data.fusionQPose.scalar();
+			q_curr = q_ned_enu*q_curr;
+			q_curr = q_curr*q_aircraft_base;
+			w_curr(0) = imu_data.gyro.x();
+			w_curr(1) = -imu_data.gyro.y();
+			w_curr(2) = -imu_data.gyro.z();
+			if(!imu_received){
+				imu_received = true;
+			}
+		}
+		if(imu_received && setpoint_received){
+			doControl();
+		}
+		loop_rate.sleep();
+	}
 }
