@@ -7,15 +7,15 @@
 #include <geometry_msgs/Quaternion.h>
 #include <stdio.h>
 
-#define T_ATT 0.2 // Attitude control time constant
-#define T_W 0.01 // Angular rate control time constant
+#define T_ATT 0.3 // Attitude control time constant
+#define T_W 0.03 // Angular rate control time constant
 
-#define MAX_ROLL 0.7f
-#define MAX_PITCH 0.7f
+#define MAX_ROLL 45*M_PI/180
+#define MAX_PITCH 45*M_PI/180
 
-#define MAX_PITCHRATE_CMD 3.0f
-#define MAX_ROLLRATE_CMD 3.0f
-#define MAX_YAWRATE_CMD 3.0f
+#define MAX_PITCHRATE_CMD 2.0f
+#define MAX_ROLLRATE_CMD 2.0f
+#define MAX_YAWRATE_CMD 1.5f
 
 /*
 Currently the controller only runs once when a new input is received.
@@ -29,7 +29,7 @@ TODO: fix handling of temporary failsafe (reset setpoint_received, imu_received)
 ros::Publisher torque_pub;
 
 // If J is later changed to not be multiple of I, then make sure rate controller is correct
-const float J_val = 0.003; //Diagonal value of J
+const float J_val = 0.03; //Diagonal value of J
 const Eigen::Matrix3d J = J_val*Eigen::Matrix3d::Identity(); //Inertia matrix
 
 bool imu_received = false;
@@ -59,8 +59,17 @@ void imuCallback(const sensor_msgs::Imu& input){
 		q_tmp.y() = input.orientation.y;
 		q_tmp.z() = input.orientation.z;
 		q_tmp.w() = input.orientation.w;
-		Eigen::Vector3d euler = quaternion.toRotationMatrix().eulerAngles(2, 1, 0);
-  		yaw_h = euler[2];
+		Eigen::Vector3d euler = q_tmp.toRotationMatrix().eulerAngles(2, 1, 0);
+		if((euler[1] < -M_PI/2 || euler[1] > M_PI/2) && (euler[2] < -M_PI/2 || euler[2] > M_PI/2)){
+			// Yaw is wrong by PI/2
+			if(euler[0] < 0){
+				yaw_h = euler[0] + M_PI;
+			} else {
+				yaw_h = euler[0] - M_PI;
+			}
+		} else {
+  			yaw_h = euler[0];
+		}
 		imu_received = true;
 	}
 	if(setpoint_received){
@@ -82,7 +91,9 @@ void setpointCallback(const omnicopter_ros::RCInput& input){
 Eigen::Quaterniond RPquaternionFromRC(const omnicopter_ros::RCInput& input, bool zeroRP){
 	float roll = zeroRP ? 0 : MAX_ROLL*input.rollstick;
 	float pitch = zeroRP ? 0 : MAX_PITCH*input.pitchstick;
-	yaw_h -= input.yawstick*0.03;
+	if(setp.throttlestick >= -0.98){
+		yaw_h -= input.yawstick*0.03;
+	}
 	while(yaw_h > M_PI){
 		yaw_h -= 2*M_PI;
 	}
@@ -131,9 +142,9 @@ void doControl(){
 		// actual rate gets small so we don't get a big bounceback
 		Eigen::Vector3d w_rc = ratesFromRC(setp);
 		bool zero_setpoint = std::abs(w_rc(0)) < 0.001 && std::abs(w_rc(1)) < 0.001 && std::abs(w_rc(2)) < 0.001;
-		bool small_rate = std::abs(imu_data.angular_velocity.x) < 0.5 && 
-							std::abs(imu_data.angular_velocity.y) < 0.5 && 
-							std::abs(imu_data.angular_velocity.z) < 0.5;
+		bool small_rate = false;//std::abs(imu_data.angular_velocity.x) < 0.5 && 
+					//		std::abs(imu_data.angular_velocity.y) < 0.5 && 
+					//		std::abs(imu_data.angular_velocity.z) < 0.5;
 		if(zero_setpoint && small_rate){
 			if(!hold_attitude){
 				q_hold = imu_data.orientation;
@@ -161,11 +172,18 @@ void doControl(){
 	w_curr(0) = imu_data.angular_velocity.x;
 	w_curr(1) = imu_data.angular_velocity.y;
 	w_curr(2) = imu_data.angular_velocity.z;
-
 	Eigen::Vector3d torque_out = control_rates(w_des, w_curr);
+	geometry_msgs::Vector3Stamped msg;
+	msg.header.stamp = ros::Time::now();
 	msg.vector.x = torque_out(0);
 	msg.vector.y = torque_out(1);
-	msg.vector.z = torque_out(2);
+	msg.vector.z = 0;//torque_out(2);
+	if(setp.throttlestick < -0.985){
+		msg.vector.x = 0;
+		msg.vector.y = 0;
+		msg.vector.z = 0;
+	}
+	printf("Yaw_h: %.2f w: % 04.2f % 04.2f % 04.2f w_des: % 04.2f % 04.2f % 04.2f tau: % 04.2f % 04.2f % 04.2f\n",yaw_h, w_curr(0), w_curr(1), w_curr(2), w_des(0), w_des(1), w_des(2), torque_out(0), torque_out(1), torque_out(2));
 	torque_pub.publish(msg);
 }
 

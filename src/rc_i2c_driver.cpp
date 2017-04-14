@@ -72,23 +72,23 @@ int main(int argc, char **argv){
 
 			int mode1 = round(-ch[5]);
 			int mode2 = round(-ch[6]);
-			if(mode2 == 1){
+			if(mode1 == 1 && mode2 == 1){
 				msg.rc_mode.attitude_control_mode = omnicopter_ros::ControlMode::MODE_CONTROL_RP_ATT_Y_RATE;
 				msg.rc_mode.position_control_mode = omnicopter_ros::ControlMode::MODE_CONTROL_FORCE_BODY_UP;
 			}
-			else if(mode2 == 0){
+			else if(mode1 == 1 && mode2 == 0){
 				msg.rc_mode.attitude_control_mode = omnicopter_ros::ControlMode::MODE_CONTROL_YAWRATE;
 				msg.rc_mode.position_control_mode = omnicopter_ros::ControlMode::MODE_CONTROL_FORCE_BODY;
 
 			}
-			else if(mode2 == -1){
+			else if(mode1 == 1 && mode2 == -1){
 				msg.rc_mode.attitude_control_mode = omnicopter_ros::ControlMode::MODE_CONTROL_YAWRATE;
 				msg.rc_mode.position_control_mode = omnicopter_ros::ControlMode::MODE_CONTROL_FORCE_ENU;
 			}
-			/*else if(mode1 == 0 && mode2 == 1){
-				msg.rc_mode.attitude_control_mode = omnicopter_ros::ControlMode::MODE_CONTROL_RP_ATT_Y_RATE;
-				msg.rc_mode.position_control_mode = omnicopter_ros::ControlMode::MODE_CONTROL_ALTHOLD_FORCE_BODY_UP;
-			}
+			else if(mode1 != 1){
+				msg.rc_mode.attitude_control_mode = omnicopter_ros::ControlMode::MODE_CONTROL_RATES;
+				msg.rc_mode.position_control_mode = omnicopter_ros::ControlMode::MODE_CONTROL_FORCE_BODY_UP;
+			}/*
 			else if(mode1 == 0 && mode2 == 0){
 				msg.rc_mode.attitude_control_mode = omnicopter_ros::ControlMode::MODE_CONTROL_YAWRATE;
 				msg.rc_mode.position_control_mode = omnicopter_ros::ControlMode::MODE_CONTROL_ALTHOLD_FORCE_BODY;

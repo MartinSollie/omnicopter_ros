@@ -14,16 +14,16 @@ void setpointCallback(const omnicopter_ros::RCInput& input){
 	if(input.rc_mode.position_control_mode == omnicopter_ros::ControlMode::MODE_CONTROL_FORCE_BODY_UP){
 		msg.vector.x = 0;
 		msg.vector.y = 0;
-		msg.vector.z = (input.throttlestick+1)*2;
+		msg.vector.z = (input.throttlestick+1)*3;
 	}
 	else if(input.rc_mode.position_control_mode == omnicopter_ros::ControlMode::MODE_CONTROL_FORCE_BODY){
 		msg.vector.x = input.pitchstick*1;// -3 - 3 N
 		msg.vector.y = -input.rollstick*1; // -3 - 3 N
-		msg.vector.z = (input.throttlestick+1)*2;
+		msg.vector.z = (input.throttlestick+1)*3;
 	}
 	else if(input.rc_mode.position_control_mode == omnicopter_ros::ControlMode::MODE_CONTROL_FORCE_ENU){
 		R = q.toRotationMatrix();
-		Eigen::Vector3d force_body = R.inverse()*Eigen::Vector3d(input.pitchstick*1, -input.rollstick*1, 2*(input.throttlestick+1));
+		Eigen::Vector3d force_body = R.inverse()*Eigen::Vector3d(input.pitchstick*1, -input.rollstick*1, 3*(input.throttlestick+1));
 		msg.vector.x = force_body(0);
 		msg.vector.y = force_body(1);
 		msg.vector.z = force_body(2);

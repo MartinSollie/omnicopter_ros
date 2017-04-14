@@ -27,6 +27,9 @@
 #include <RTIMULib.h>
 #include <ros/ros.h>
 #include <sensor_msgs/Imu.h>
+#include <Eigen/Geometry>
+#include <cmath>
+#include <stdio.h>
 
 int main(int argc, char **argv)
 {
@@ -81,7 +84,11 @@ int main(int argc, char **argv)
         ROS_ERROR("No Imu found");
         return -1;
     }
+	
+	Eigen::Quaterniond q_ned_enu = Eigen::AngleAxisd(M_PI,  Eigen::Vector3d::UnitX())
+	* Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitZ());
 
+	Eigen::Quaterniond q_aircraft_base(Eigen::AngleAxisd(M_PI,  Eigen::Vector3d::UnitX()));
     // Initialise the imu object
     imu->IMUInit();
 
@@ -90,32 +97,36 @@ int main(int argc, char **argv)
     // Enable the sensors
     imu->setGyroEnable(true);
     imu->setAccelEnable(true);
-    imu->setCompassEnable(true);
+    imu->setCompassEnable(false);
 
     ros::Rate loop_rate(update_rate);
+    sensor_msgs::Imu imu_msg;
     while (ros::ok())
     {
-        sensor_msgs::Imu imu_msg;
-
-        if (imu->IMURead())
+        while (imu->IMURead())
         {
             RTIMU_DATA imu_data = imu->getIMUData();
             imu_msg.header.stamp = ros::Time::now();
             imu_msg.header.frame_id = frame_id;
-            imu_msg.orientation.x = imu_data.fusionQPose.x(); 
-            imu_msg.orientation.y = imu_data.fusionQPose.y(); 
-            imu_msg.orientation.z = imu_data.fusionQPose.z(); 
-            imu_msg.orientation.w = imu_data.fusionQPose.scalar(); 
+	    Eigen::Quaterniond q(imu_data.fusionQPose.scalar(), imu_data.fusionQPose.x(), imu_data.fusionQPose.y(), imu_data.fusionQPose.z());
+	    q = q_ned_enu*q;
+	    q = q*q_aircraft_base;
+
+	    imu_msg.orientation.x = q.x(); 
+            imu_msg.orientation.y = q.y(); 
+            imu_msg.orientation.z = q.z(); 
+            imu_msg.orientation.w = q.w(); 
             imu_msg.angular_velocity.x = imu_data.gyro.x();
-            imu_msg.angular_velocity.y = imu_data.gyro.y();
-            imu_msg.angular_velocity.z = imu_data.gyro.z();
+            imu_msg.angular_velocity.y = -imu_data.gyro.y();
+            imu_msg.angular_velocity.z = -imu_data.gyro.z();
             imu_msg.linear_acceleration.x = imu_data.accel.x();
-            imu_msg.linear_acceleration.y = imu_data.accel.y();
-            imu_msg.linear_acceleration.z = imu_data.accel.z();
+            imu_msg.linear_acceleration.y = -imu_data.accel.y();
+            imu_msg.linear_acceleration.z = -imu_data.accel.z();
 
             imu_pub.publish(imu_msg);
+		
+//		printf("% 04.2f % 04.2f % 04.2f\n", imu_data.gyro.x(), -imu_data.gyro.y(), -imu_data.gyro.z());
         }
-        ros::spinOnce();
         loop_rate.sleep();
     }
     return 0;
