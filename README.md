@@ -6,7 +6,7 @@ How to setup a Raspberry Pi Zero to run the omnicopter software:
 
 2. Connect the Pi Zero to a monitor using the mini HDMI connector. Use a USB OTG adapter to connect a keyboard to the single USB port of the Pi Zero. Power the Pi Zero up by connecting a USB power adapter that can deliver minimum 1A to the "PWR IN" USB port. Default login user "pi", password "raspberry".
 
-3. Enter `sudo raspi-config`. The hostname and password can be changed here if desired (options 1 and 2). Select "5 Interfacing Options" and then enable SSH (P2) and I2C (P5).
+3. Enter the terminal command `sudo raspi-config`. The hostname and password can be changed here if desired (options 1 and 2). Select "5 Interfacing Options" and then enable SSH (P2) and I2C (P5).
 
 The remaining part of the setup can be done over SSH. If you do not use SSH you will probably need a USB hub to connect to the internet while still having the keyboard connected. You might also want to change the keyboard layout if you are not using a UK keyboard layout.
 
