@@ -2,8 +2,6 @@
 
 How to setup a Raspberry Pi Zero to run the omnicopter software:
 
-(WIP)
-
 1. Install Raspbian Jessie Lite by following the instructions here: https://www.raspberrypi.org/documentation/installation/installing-images/
 
 2. Connect the Pi Zero to a monitor using the mini HDMI connector. Use a USB OTG adapter to connect a keyboard to the single USB port of the Pi Zero. Power the Pi Zero up by connecting a USB power adapter that can deliver minimum 1A to the "PWR IN" USB port. Default login user "pi", password "raspberry".
@@ -21,26 +19,9 @@ sudo /etc/init.d/dphys-swapfile start
 ```
 
 
-6. Clone this repo and run the startup script. This may take a long time (hours) to complete since we will be compiling ROS from source:
-```
-mkdir -p ~/omnicopter_ws/src
-cd ~/omnicopter_ws/src
-git clone https://github.com/MartinSollie/omnicopter_ros.git
-cd omnicopter_ros
-chmod +c startup.sh
-sudo ./startup.sh
-```
+6. [Install ROS](http://wiki.ros.org/ROSberryPi/Installing%20ROS%20Kinetic%20on%20the%20Raspberry%20Pi)
+7. [Install RTIMULib](https://github.com/RPi-Distro/RTIMULib/tree/master/Linux)
+8. Install [Eigen](http://eigen.tuxfamily.org/index.php?title=Main_Page#Download): Coly the "Eigen" folder to /usr/local/include
 
-
-
-
-Wifi: https://oshlab.com/esp8266-raspberry-pi-gpio-wifi/
-
-Installere ROS: http://wiki.ros.org/ROSberryPi/Installing%20ROS%20Kinetic%20on%20the%20Raspberry%20Pi
-http://wiki.ros.org/indigo/Installation/UbuntuARM#Set_your_Locale
-
-Installere RTIMULib: https://github.com/RPi-Distro/RTIMULib/tree/master/Linux
-
-Last ned Eigen herfra: http://eigen.tuxfamily.org/index.php?title=Main_Page#Download
-Pakk ut filene og kopier mappa "Eigen" til /usr/local/include
-
+9. Create a ROS workspace and clone this repo to the workspace src folder
+10. Build with catkin and run the software with the included launch files
