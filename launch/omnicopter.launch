@@ -7,7 +7,19 @@
 		<param name="calibration_file_path" value="$(find omnicopter_ros)/config"/>
 		<param name="calibration_file_name" value="RTIMULib" />
 		<param name="update_rate" value="100"/>
+		<param name="T_ATT" value="1.2"/>
+		<param name="T_W" value="0.027"/>
+		<param name="J_val" value="0.025"/>
+
+		<param name="K_p_roll" value="0.65"/>
+		<param name="K_p_pitch" value="0.65"/>
+		<param name="K_p_yaw" value="0.65"/>
+		<param name="K_d_roll" value="0.0"/>
+		<param name="K_d_pitch" value="0.0"/>
+		<param name="K_d_yaw" value="0.0"/>
+		<param name="K_i_roll" value="0.26"/>
+		<param name="K_i_pitch" value="0.26"/>
+		<param name="K_i_yaw" value="0.0"/>
 	</node>
 	<node pkg="omnicopter_ros" type="position_controller" name="position_controller" output="screen"/>
-	<node pkg="omnicopter_ros" type="sonar_driver" name="sonar_driver" output="screen"/>
 </launch>

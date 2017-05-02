@@ -8,8 +8,8 @@
 #include <stdio.h>
 #include <RTIMULib.h>
 
-#define T_ATT 0.3 // Attitude control time constant
-#define T_W 0.03 // Angular rate control time constant
+//#define T_ATT 1.0 // Attitude control time constant
+//#define T_W 0.03 // Angular rate control time constant
 
 #define MAX_ROLL 45*M_PI/180
 #define MAX_PITCH 45*M_PI/180
@@ -18,19 +18,13 @@
 #define MAX_ROLLRATE_CMD 2.0f
 #define MAX_YAWRATE_CMD 1.5f
 
-/*
-Currently the controller only runs once when a new input is received.
-The input persistence of the PWM driver means that the motor outputs corresponding
-to this control iteration will be kept until the next iteration.
-For safety reasons this may not be optimal, consider making changes.
-
-TODO: fix handling of temporary failsafe (reset setpoint_received, imu_received)
-*/
-
 ros::Publisher torque_pub;
+float T_ATT = 1.0;
+float T_W = 0.03;
+
 
 // If J is later changed to not be multiple of I, then make sure rate controller is correct
-const float J_val = 0.03; //Diagonal value of J
+float J_val = 0.17; //Diagonal value of J
 const Eigen::Matrix3d J = J_val*Eigen::Matrix3d::Identity(); //Inertia matrix
 
 bool imu_received = false;
@@ -42,7 +36,7 @@ Eigen::Quaterniond q_hold;
 void doControl();
 Eigen::Vector3d control_attitude(const Eigen::Quaterniond q_des, const Eigen::Quaterniond q);
 Eigen::Vector3d control_rates(const Eigen::Vector3d w_des, const Eigen::Vector3d w);
-float yaw_h;
+float yaw_h = 0;
 Eigen::Quaterniond q_setp;
 Eigen::Quaterniond q_err;
 
@@ -50,6 +44,17 @@ Eigen::Quaterniond q_des;
 Eigen::Quaterniond q_curr;
 Eigen::Vector3d w_des;
 Eigen::Vector3d w_curr;
+
+// PID stuff
+ros::Time last_pid_time;
+bool timer_set = false;
+Eigen::Vector3d w_prev(0,0,0);
+Eigen::Vector3d rates_int(0,0,0);
+float max_int = 0.5;
+Eigen::Vector3d K_p(0.9,0.9,0.9); // Roll, pitch, yaw
+Eigen::Vector3d K_d(0,0,0);
+Eigen::Vector3d K_i(0,0,0);
+
 
 /*
 void imuCallback(const sensor_msgs::Imu& input){
@@ -84,22 +89,23 @@ void setpointCallback(const omnicopter_ros::RCInput& input){
 	if(!setpoint_received){
 		setpoint_received = true;
 	}
-	//if(imu_received){
-	//	doControl();
-	//}
 }
 
-Eigen::Quaterniond RPquaternionFromRC(const omnicopter_ros::RCInput& input, bool zeroRP){
+Eigen::Quaterniond RPquaternionFromRC(const omnicopter_ros::RCInput& input, bool zeroRP, bool useYawrate){
 	float roll = zeroRP ? 0 : MAX_ROLL*input.rollstick;
 	float pitch = zeroRP ? 0 : MAX_PITCH*input.pitchstick;
-	if(setp.throttlestick >= -0.98){
-		yaw_h -= input.yawstick*0.03;
-	}
-	while(yaw_h > M_PI){
-		yaw_h -= 2*M_PI;
-	}
-	while(yaw_h < -M_PI){
-		yaw_h += 2*M_PI;
+	if(useYawrate){
+		if(setp.throttlestick >= -0.98 && (setp.yawstick > 0.02 || setp.yawstick < -0.02)){
+			yaw_h -= input.yawstick*0.03;
+		}
+		while(yaw_h > M_PI){
+			yaw_h -= 2*M_PI;
+		}
+		while(yaw_h < -M_PI){
+			yaw_h += 2*M_PI;
+		}
+	} else {
+		yaw_h = M_PI*input.rollstick;
 	}
 	q_setp = Eigen::AngleAxisd(yaw_h,  Eigen::Vector3d::UnitZ())
 	* Eigen::AngleAxisd(pitch,  Eigen::Vector3d::UnitY())
@@ -114,23 +120,20 @@ Eigen::Vector3d ratesFromRC(const omnicopter_ros::RCInput& input){
 
 
 void doControl(){
-	/*if(setp.rc_mode.attitude_control_mode == omnicopter_ros::ControlMode::MODE_CONTROL_ATT){
+	if(setp.rc_mode.attitude_control_mode == omnicopter_ros::ControlMode::MODE_CONTROL_ATT){
 		//Do attitude control
 		hold_attitude = false;
 		hold_yaw = false;
-		q_des = RPquaternionFromRC(setp);
-		
-
+		q_des = RPquaternionFromRC(setp, false, false);
 		w_des = control_attitude(q_des, q_curr);
 	}
-	else */
-	if(setp.rc_mode.attitude_control_mode == omnicopter_ros::ControlMode::MODE_CONTROL_RP_ATT_Y_RATE){
+	else if(setp.rc_mode.attitude_control_mode == omnicopter_ros::ControlMode::MODE_CONTROL_RP_ATT_Y_RATE){
 		Eigen::Vector3d w_rc = ratesFromRC(setp);
-		w_des = control_attitude(RPquaternionFromRC(setp, false), q_curr);
+		w_des = control_attitude(RPquaternionFromRC(setp, false, true), q_curr);
 	}
 	else if(setp.rc_mode.attitude_control_mode == omnicopter_ros::ControlMode::MODE_CONTROL_YAWRATE){
 		Eigen::Vector3d w_rc = ratesFromRC(setp);
-		w_des = control_attitude(RPquaternionFromRC(setp, true), q_curr);
+		w_des = control_attitude(RPquaternionFromRC(setp, true, true), q_curr);
 
 	}
 	else if(setp.rc_mode.attitude_control_mode == omnicopter_ros::ControlMode::MODE_CONTROL_RATES){
@@ -161,17 +164,29 @@ void doControl(){
 		return;
 	}
 	Eigen::Vector3d torque_out = control_rates(w_des, w_curr);
+	if(setp.throttlestick > -0.3){
+		// Update integral
+		Eigen::Vector3d new_rates_int = rates_int + K_i.cwiseProduct(w_des-w_curr)*(ros::Time::now()-last_pid_time).toSec();
+		for(int i = 0; i < 3; i++){
+			if(new_rates_int(i) < max_int && new_rates_int(i) > -max_int){
+				rates_int(i) = new_rates_int(i);
+			}
+		}
+	}
+	last_pid_time = ros::Time::now();
 	geometry_msgs::Vector3Stamped msg;
 	msg.header.stamp = ros::Time::now();
 	msg.vector.x = torque_out(0);
 	msg.vector.y = torque_out(1);
-	msg.vector.z = 0;//torque_out(2);
+	msg.vector.z = torque_out(2);
 	if(setp.throttlestick < -0.985){
 		msg.vector.x = 0;
 		msg.vector.y = 0;
 		msg.vector.z = 0;
+		rates_int = Eigen::Vector3d(0,0,0);
 	}
-//	printf("Yaw_h: %.2f w: % 04.2f % 04.2f % 04.2f w_des: % 04.2f % 04.2f % 04.2f tau: % 04.2f % 04.2f % 04.2f\n",yaw_h, w_curr(0), w_curr(1), w_curr(2), w_des(0), w_des(1), w_des(2), torque_out(0), torque_out(1), torque_out(2));
+	printf("Torque: % 04.2f % 04.2f % 04.2f, Integral: % 04.3f % 04.3f % 04.3f\n", torque_out(0), torque_out(1), torque_out(2), rates_int(0), rates_int(1), rates_int(2));
+	//printf("Yaw_h: %.2f w: % 04.2f % 04.2f % 04.2f w_des: % 04.2f % 04.2f % 04.2f tau: % 04.2f % 04.2f % 04.2f\n",yaw_h, w_curr(0), w_curr(1), w_curr(2), w_des(0), w_des(1), w_des(2), torque_out(0), torque_out(1), torque_out(2));
 	torque_pub.publish(msg);
 }
 
@@ -191,7 +206,15 @@ Eigen::Vector3d control_rates(const Eigen::Vector3d w_des, const Eigen::Vector3d
 	//return 1.0/T_W*J*(w_des-w)+w.cross(J*w);
 
 	//Maybe this is faster? If J is a multiple of I, then the cross term is 0
-	return Eigen::Vector3d((1.0/T_W)*J_val*(w_des(0)-w(0)), (1.0/T_W)*J_val*(w_des(1)-w(1)), (1.0/T_W)*J_val*(w_des(2)-w(2)));
+	//return Eigen::Vector3d((1.0/T_W)*J_val*(w_des(0)-w(0)), (1.0/T_W)*J_val*(w_des(1)-w(1)), (1.0/T_W)*J_val*(w_des(2)-w(2)));
+	
+	// standard PID controller
+	Eigen::Vector3d out;
+	Eigen::Vector3d w_err = w_des-w;
+	out = K_p.cwiseProduct(w_err) + K_d.cwiseProduct((w_prev-w)/(ros::Time::now()-last_pid_time).toSec()) + rates_int;
+	w_prev = w;
+	return out;
+	
 
 }
 
@@ -217,6 +240,19 @@ int main(int argc, char **argv){
 		ROS_WARN("No update_rate provided - default: 100 Hz");
 		update_rate = 100;
 	}
+	n_priv.getParam("T_ATT", T_ATT);
+	n_priv.getParam("T_W", T_W);
+	n_priv.getParam("J_val", J_val);
+	n_priv.getParam("K_p_roll",K_p(0));
+	n_priv.getParam("K_p_pitch",K_p(1));
+	n_priv.getParam("K_p_yaw",K_p(2));
+	n_priv.getParam("K_d_roll",K_d(0));
+	n_priv.getParam("K_d_pitch",K_d(1));
+	n_priv.getParam("K_d_yaw",K_d(2));
+	n_priv.getParam("K_i_roll",K_i(0));
+	n_priv.getParam("K_i_pitch",K_i(1));
+	n_priv.getParam("K_i_yaw",K_i(2));
+
 
 	RTIMUSettings *settings = new RTIMUSettings(calibration_file_path.c_str(), calibration_file_name.c_str());
 	RTIMU *imu = RTIMU::createIMU(settings);
@@ -227,7 +263,7 @@ int main(int argc, char **argv){
 
 	// Quaternions to transform IMU data from NED to ROS ENU frame
 	Eigen::Quaterniond q_ned_enu = Eigen::AngleAxisd(M_PI,  Eigen::Vector3d::UnitX())
-					* Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitZ());
+					* Eigen::AngleAxisd(0, Eigen::Vector3d::UnitZ());
 	Eigen::Quaterniond q_aircraft_base(Eigen::AngleAxisd(M_PI,  Eigen::Vector3d::UnitX()));
 
 	// Initialise the imu object
