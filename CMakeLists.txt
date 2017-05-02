@@ -34,7 +34,6 @@ catkin_package(
 
 include_directories(include ${catkin_INCLUDE_DIRS})
 #Add all executables
-add_executable(commander src/commander.cpp)
 add_executable(motor_i2c_driver src/motor_i2c_driver.cpp src/I2C.cpp src/PCA9685.cpp)
 add_executable(rc_i2c_driver src/rc_i2c_driver.cpp src/I2C.cpp)
 add_executable(attitude_controller src/attitude_controller.cpp)
@@ -46,10 +45,12 @@ add_executable(print_euler src/print_euler.cpp)
 
 add_dependencies(motor_i2c_driver ${${PROJECT_NAME}_EXPORTED_TARGETS})
 add_dependencies(rc_i2c_driver ${${PROJECT_NAME}_EXPORTED_TARGETS})
+add_dependencies(attitude_controller ${${PROJECT_NAME}_EXPORTED_TARGETS})
+add_dependencies(position_controller ${${PROJECT_NAME}_EXPORTED_TARGETS})
 add_dependencies(motor_tester ${${PROJECT_NAME}_EXPORTED_TARGETS})
+add_dependencies(control_allocation ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
 
-target_link_libraries(commander ${catkin_LIBRARIES})
 target_link_libraries(motor_i2c_driver ${catkin_LIBRARIES})
 target_link_libraries(rc_i2c_driver ${catkin_LIBRARIES})
 target_link_libraries(attitude_controller ${catkin_LIBRARIES} RTIMULib)

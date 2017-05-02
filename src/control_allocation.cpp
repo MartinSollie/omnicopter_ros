@@ -32,9 +32,9 @@ M = |		|
 
 */
 
-#define K_F 6.8834e-11
-#define K_M 6.8834e-12 //wild guess
-#define PI 3.141592653589
+#define K_F 4.2e-7
+#define K_M 4.2e-8 //wild guess
+#define max_rpm 29000
 
 Eigen::Vector3d force_setpoint;
 Eigen::Vector3d torque_setpoint;
@@ -49,10 +49,10 @@ ros::Publisher motor_pub;
 double motor_force_to_usec(double f){
 	//std::min(std::max(x, 1000), 2000)
 	if(f < 0){
-		return std::min(std::max(-500/(2*PI*38000)*sqrt(-f/K_F)+1500, 1000.0), 2000.0);
+		return std::min(std::max(-500/(2*M_PI*max_rpm/60.0)*sqrt(-f/K_F)+1500, 1000.0), 2000.0);
 	}
 	
-	return std::min(std::max(500/(2*PI*38000)*sqrt(f/K_F)+1500, 1000.0), 2000.0);
+	return std::min(std::max(500/(2*M_PI*max_rpm/60.0)*sqrt(f/K_F)+1500, 1000.0), 2000.0);
 }
 
 void forceCallback(const geometry_msgs::Vector3Stamped& input) {

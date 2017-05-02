@@ -14,12 +14,12 @@ void setpointCallback(const omnicopter_ros::RCInput& input){
 	if(input.rc_mode.position_control_mode == omnicopter_ros::ControlMode::MODE_CONTROL_FORCE_BODY_UP){
 		msg.vector.x = 0;
 		msg.vector.y = 0;
-		msg.vector.z = (input.throttlestick+1)*3;
+		msg.vector.z = (input.throttlestick+1)*5; // 0-6 N
 	}
 	else if(input.rc_mode.position_control_mode == omnicopter_ros::ControlMode::MODE_CONTROL_FORCE_BODY){
 		msg.vector.x = input.pitchstick*1;// -3 - 3 N
 		msg.vector.y = -input.rollstick*1; // -3 - 3 N
-		msg.vector.z = (input.throttlestick+1)*3;
+		msg.vector.z = (input.throttlestick+1)*5;
 	}
 	else if(input.rc_mode.position_control_mode == omnicopter_ros::ControlMode::MODE_CONTROL_FORCE_ENU){
 		R = q.toRotationMatrix();
@@ -41,6 +41,7 @@ void imuCallback(const sensor_msgs::Imu& input){
 	q.y() = input.orientation.y;
 	q.z() = input.orientation.z;
 	q.w() = input.orientation.w;
+	R = q.toRotationMatrix();
 }
 
 int main(int argc, char **argv){

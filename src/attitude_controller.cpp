@@ -8,9 +8,6 @@
 #include <stdio.h>
 #include <RTIMULib.h>
 
-//#define T_ATT 1.0 // Attitude control time constant
-//#define T_W 0.03 // Angular rate control time constant
-
 #define MAX_ROLL 45*M_PI/180
 #define MAX_PITCH 45*M_PI/180
 
@@ -19,13 +16,7 @@
 #define MAX_YAWRATE_CMD 1.5f
 
 ros::Publisher torque_pub;
-float T_ATT = 1.0;
-float T_W = 0.03;
-
-
-// If J is later changed to not be multiple of I, then make sure rate controller is correct
-float J_val = 0.17; //Diagonal value of J
-const Eigen::Matrix3d J = J_val*Eigen::Matrix3d::Identity(); //Inertia matrix
+float T_ATT = 1.0; // Attitude control time constant
 
 bool imu_received = false;
 bool setpoint_received = false;
@@ -55,34 +46,6 @@ Eigen::Vector3d K_p(0.9,0.9,0.9); // Roll, pitch, yaw
 Eigen::Vector3d K_d(0,0,0);
 Eigen::Vector3d K_i(0,0,0);
 
-
-/*
-void imuCallback(const sensor_msgs::Imu& input){
-	imu_data = input;
-	if(!imu_received){
-		Eigen::Quaterniond q_tmp;
-		q_tmp.x() = input.orientation.x;
-		q_tmp.y() = input.orientation.y;
-		q_tmp.z() = input.orientation.z;
-		q_tmp.w() = input.orientation.w;
-		Eigen::Vector3d euler = q_tmp.toRotationMatrix().eulerAngles(2, 1, 0);
-		if((euler[1] < -M_PI/2 || euler[1] > M_PI/2) && (euler[2] < -M_PI/2 || euler[2] > M_PI/2)){
-			// Yaw is wrong by PI/2
-			if(euler[0] < 0){
-				yaw_h = euler[0] + M_PI;
-			} else {
-				yaw_h = euler[0] - M_PI;
-			}
-		} else {
-  			yaw_h = euler[0];
-		}
-		imu_received = true;
-	}
-	if(setpoint_received){
-		doControl();
-	}
-
-}*/
 
 void setpointCallback(const omnicopter_ros::RCInput& input){
 	setp = input;
@@ -141,9 +104,9 @@ void doControl(){
 		// actual rate gets small so we don't get a big bounceback
 		Eigen::Vector3d w_rc = ratesFromRC(setp);
 		bool zero_setpoint = std::abs(w_rc(0)) < 0.001 && std::abs(w_rc(1)) < 0.001 && std::abs(w_rc(2)) < 0.001;
-		bool small_rate = false;//std::abs(w_curr(0)) < 0.5 && 
-					//		std::abs(w_curr(1)) < 0.5 && 
-					//		std::abs(w_curr(2)) < 0.5;
+		bool small_rate = std::abs(w_curr(0)) < 0.5 && 
+							std::abs(w_curr(1)) < 0.5 && 
+							std::abs(w_curr(2)) < 0.5;
 		if(zero_setpoint && small_rate){
 			if(!hold_attitude){
 				q_hold = q_curr;
@@ -185,8 +148,7 @@ void doControl(){
 		msg.vector.z = 0;
 		rates_int = Eigen::Vector3d(0,0,0);
 	}
-	printf("Torque: % 04.2f % 04.2f % 04.2f, Integral: % 04.3f % 04.3f % 04.3f\n", torque_out(0), torque_out(1), torque_out(2), rates_int(0), rates_int(1), rates_int(2));
-	//printf("Yaw_h: %.2f w: % 04.2f % 04.2f % 04.2f w_des: % 04.2f % 04.2f % 04.2f tau: % 04.2f % 04.2f % 04.2f\n",yaw_h, w_curr(0), w_curr(1), w_curr(2), w_des(0), w_des(1), w_des(2), torque_out(0), torque_out(1), torque_out(2));
+	//printf("Torque: % 04.2f % 04.2f % 04.2f, Integral: % 04.3f % 04.3f % 04.3f\n", torque_out(0), torque_out(1), torque_out(2), rates_int(0), rates_int(1), rates_int(2));
 	torque_pub.publish(msg);
 }
 
@@ -203,19 +165,12 @@ Eigen::Vector3d control_attitude(const Eigen::Quaterniond q_des, const Eigen::Qu
 }
 
 Eigen::Vector3d control_rates(const Eigen::Vector3d w_des, const Eigen::Vector3d w){
-	//return 1.0/T_W*J*(w_des-w)+w.cross(J*w);
-
-	//Maybe this is faster? If J is a multiple of I, then the cross term is 0
-	//return Eigen::Vector3d((1.0/T_W)*J_val*(w_des(0)-w(0)), (1.0/T_W)*J_val*(w_des(1)-w(1)), (1.0/T_W)*J_val*(w_des(2)-w(2)));
-	
 	// standard PID controller
 	Eigen::Vector3d out;
 	Eigen::Vector3d w_err = w_des-w;
 	out = K_p.cwiseProduct(w_err) + K_d.cwiseProduct((w_prev-w)/(ros::Time::now()-last_pid_time).toSec()) + rates_int;
 	w_prev = w;
 	return out;
-	
-
 }
 
 int main(int argc, char **argv){
@@ -241,8 +196,6 @@ int main(int argc, char **argv){
 		update_rate = 100;
 	}
 	n_priv.getParam("T_ATT", T_ATT);
-	n_priv.getParam("T_W", T_W);
-	n_priv.getParam("J_val", J_val);
 	n_priv.getParam("K_p_roll",K_p(0));
 	n_priv.getParam("K_p_pitch",K_p(1));
 	n_priv.getParam("K_p_yaw",K_p(2));
